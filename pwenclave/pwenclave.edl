@@ -3,14 +3,17 @@ enclave {
 
   trusted {
     /* Generate a fresh salt, and then generate a password hash using pbkdf2.
-     * Then use SGX sealing to store the salt and correct hash for later use by pw_check. */
-		public uint32_t pw_setup([in, size=pwlen] const uint8_t *password, uint32_t pwlen,
-		                         [out, size=bloblen_in] uint8_t *blob, uint32_t bloblen_in, [out] uint32_t *bloblen_out);
+     * Then use SGX sealing to store the salt and correct hash for later use by pw_check.
+     *
+     * On success, up to bloblen_in bytes at blob are written to, and the number of bytes
+     * written is stored at bloblen_out. */
+    public uint32_t pw_setup([in, size=pwlen] const uint8_t *password, uint32_t pwlen,
+                             [out, size=bloblen_in] uint8_t *blob, uint32_t bloblen_in, [out] uint32_t *bloblen_out);
 
     /* Using a sealed salt+hash from pw_setup, check the given password.
      * This returns PW_OK if the password is correct, or PW_BAD_GUESS if not.
      * It will return PW_BLOB_INVALID if the sealed blob is somehow invalid. */
-		public uint32_t pw_check([in, size=pwlen] const uint8_t *password, size_t pwlen,
+    public uint32_t pw_check([in, size=pwlen] const uint8_t *password, size_t pwlen,
                              [in, size=bloblen] const uint8_t *blob, uint32_t bloblen);
   };
 
