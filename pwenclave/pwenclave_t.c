@@ -26,6 +26,12 @@
 } while (0)
 
 
+typedef struct ms_pw_region_enroll_t {
+	uint32_t ms_retval;
+	uint8_t* ms_region_key;
+	uint32_t ms_rklen;
+} ms_pw_region_enroll_t;
+
 typedef struct ms_pw_setup_t {
 	uint32_t ms_retval;
 	uint8_t* ms_password;
@@ -47,11 +53,52 @@ typedef struct ms_emit_debug_t {
 	char* ms_str;
 } ms_emit_debug_t;
 
+typedef struct ms_write_region_data_t {
+	uint32_t ms_retval;
+	uint8_t* ms_blob;
+	uint32_t ms_bloblen;
+} ms_write_region_data_t;
+
+typedef struct ms_read_region_data_t {
+	uint32_t ms_retval;
+	uint8_t* ms_blob;
+	uint32_t ms_bloblen_in;
+	uint32_t* ms_bloblen_out;
+} ms_read_region_data_t;
+
 #ifdef _MSC_VER
 #pragma warning(push)
 #pragma warning(disable: 4127)
 #pragma warning(disable: 4200)
 #endif
+
+static sgx_status_t SGX_CDECL sgx_pw_region_enroll(void* pms)
+{
+	ms_pw_region_enroll_t* ms = SGX_CAST(ms_pw_region_enroll_t*, pms);
+	sgx_status_t status = SGX_SUCCESS;
+	uint8_t* _tmp_region_key = ms->ms_region_key;
+	uint32_t _tmp_rklen = ms->ms_rklen;
+	size_t _len_region_key = _tmp_rklen;
+	uint8_t* _in_region_key = NULL;
+
+	CHECK_REF_POINTER(pms, sizeof(ms_pw_region_enroll_t));
+	CHECK_UNIQUE_POINTER(_tmp_region_key, _len_region_key);
+
+	if (_tmp_region_key != NULL) {
+		_in_region_key = (uint8_t*)malloc(_len_region_key);
+		if (_in_region_key == NULL) {
+			status = SGX_ERROR_OUT_OF_MEMORY;
+			goto err;
+		}
+
+		memcpy((void*)_in_region_key, _tmp_region_key, _len_region_key);
+	}
+	ms->ms_retval = pw_region_enroll((const uint8_t*)_in_region_key, _tmp_rklen);
+err:
+	if (_in_region_key) free((void*)_in_region_key);
+
+	return status;
+}
 
 static sgx_status_t SGX_CDECL sgx_pw_setup(void* pms)
 {
@@ -159,10 +206,11 @@ err:
 
 SGX_EXTERNC const struct {
 	size_t nr_ecall;
-	struct {void* call_addr; uint8_t is_priv;} ecall_table[2];
+	struct {void* call_addr; uint8_t is_priv;} ecall_table[3];
 } g_ecall_table = {
-	2,
+	3,
 	{
+		{(void*)(uintptr_t)sgx_pw_region_enroll, 0},
 		{(void*)(uintptr_t)sgx_pw_setup, 0},
 		{(void*)(uintptr_t)sgx_pw_check, 0},
 	}
@@ -170,11 +218,13 @@ SGX_EXTERNC const struct {
 
 SGX_EXTERNC const struct {
 	size_t nr_ocall;
-	uint8_t entry_table[1][2];
+	uint8_t entry_table[3][3];
 } g_dyn_entry_table = {
-	1,
+	3,
 	{
-		{0, 0, },
+		{0, 0, 0, },
+		{0, 0, 0, },
+		{0, 0, 0, },
 	}
 };
 
@@ -199,6 +249,73 @@ sgx_status_t SGX_CDECL emit_debug(const char* str)
 	
 	status = sgx_ocall(0, ms);
 
+
+	sgx_ocfree();
+	return status;
+}
+
+sgx_status_t SGX_CDECL write_region_data(uint32_t* retval, const uint8_t* blob, uint32_t bloblen)
+{
+	sgx_status_t status = SGX_SUCCESS;
+	size_t _len_blob = bloblen;
+
+	ms_write_region_data_t* ms;
+	OCALLOC(ms, ms_write_region_data_t*, sizeof(*ms));
+
+	if (blob != NULL && sgx_is_within_enclave(blob, _len_blob)) {
+		OCALLOC(ms->ms_blob, uint8_t*, _len_blob);
+		memcpy((void*)ms->ms_blob, blob, _len_blob);
+	} else if (blob == NULL) {
+		ms->ms_blob = NULL;
+	} else {
+		sgx_ocfree();
+		return SGX_ERROR_INVALID_PARAMETER;
+	}
+	
+	ms->ms_bloblen = bloblen;
+	status = sgx_ocall(1, ms);
+
+	if (retval) *retval = ms->ms_retval;
+
+	sgx_ocfree();
+	return status;
+}
+
+sgx_status_t SGX_CDECL read_region_data(uint32_t* retval, uint8_t* blob, uint32_t bloblen_in, uint32_t* bloblen_out)
+{
+	sgx_status_t status = SGX_SUCCESS;
+	size_t _len_blob = bloblen_in;
+	size_t _len_bloblen_out = sizeof(*bloblen_out);
+
+	ms_read_region_data_t* ms;
+	OCALLOC(ms, ms_read_region_data_t*, sizeof(*ms));
+
+	if (blob != NULL && sgx_is_within_enclave(blob, _len_blob)) {
+		OCALLOC(ms->ms_blob, uint8_t*, _len_blob);
+		memset(ms->ms_blob, 0, _len_blob);
+	} else if (blob == NULL) {
+		ms->ms_blob = NULL;
+	} else {
+		sgx_ocfree();
+		return SGX_ERROR_INVALID_PARAMETER;
+	}
+	
+	ms->ms_bloblen_in = bloblen_in;
+	if (bloblen_out != NULL && sgx_is_within_enclave(bloblen_out, _len_bloblen_out)) {
+		OCALLOC(ms->ms_bloblen_out, uint32_t*, _len_bloblen_out);
+		memset(ms->ms_bloblen_out, 0, _len_bloblen_out);
+	} else if (bloblen_out == NULL) {
+		ms->ms_bloblen_out = NULL;
+	} else {
+		sgx_ocfree();
+		return SGX_ERROR_INVALID_PARAMETER;
+	}
+	
+	status = sgx_ocall(2, ms);
+
+	if (retval) *retval = ms->ms_retval;
+	if (blob) memcpy((void*)blob, ms->ms_blob, _len_blob);
+	if (bloblen_out) memcpy((void*)bloblen_out, ms->ms_bloblen_out, _len_bloblen_out);
 
 	sgx_ocfree();
 	return status;

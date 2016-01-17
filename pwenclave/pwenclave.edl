@@ -2,6 +2,10 @@ enclave {
   include "pwenclave.h"
 
   trusted {
+    /* Set up a new region.  region_key contains a good quality cryptographic key that should be kept offline.
+     * During this call, write_region_data will be called to store the sealed region key. */
+    public uint32_t pw_region_enroll([in, size=rklen] const uint8_t *region_key, uint32_t rklen);
+    
     /* Generate a fresh salt, and then generate a password hash using pbkdf2.
      * Then use SGX sealing to store the salt and correct hash for later use by pw_check.
      *
@@ -18,6 +22,14 @@ enclave {
   };
 
   untrusted {
+    /* Emit debugging from enclave to outside. Obviously, this must not contain any
+     * sensitive data! */
     void emit_debug([string,in] const char *str);
+
+    /* Write sealed region key to disk.  This is called only during pw_region_enroll. */
+    uint32_t write_region_data([in, size=bloblen] const uint8_t *blob, uint32_t bloblen);
+
+    /* Read sealed region key from disk.  This is called as needed, and the result is cached. */
+    uint32_t read_region_data([out, size=bloblen_in] uint8_t *blob, uint32_t bloblen_in, [out] uint32_t *bloblen_out);
   };
 };
