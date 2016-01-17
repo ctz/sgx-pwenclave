@@ -16,6 +16,9 @@ Warning
 
 This is extremely experimental.  Use at your own risk. There is no warranty.
 
+This repo includes the enclave signing private key and the enclave
+runs in debug mode, so this in fact provides no meaningful security.
+
 Building
 --------
 
