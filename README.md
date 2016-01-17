@@ -7,16 +7,21 @@ observed by code running anywhere else.  It's able to use device-specific
 keys to encrypt ('seal') data to future executions of itself or enclaves signed by the
 same key.
 
-This project does simple PBKDF2 password hashing inside an SGX enclave.
-Password hashes are only available to the enclave, and therefore no amount of
-database leakage will jeopardise user passwords.  Your stack of GPUs are useless here.
+This project does PBKDF2 password hashing inside an SGX enclave.
+Password hashes are only available to enclaves which have been enrolled in a 'region',
+and therefore no amount of database leakage will jeopardise user passwords.  Your
+stack of GPUs are useless here.
+
+A region is represented with a AES key, and enclaves in a region have a copy of it
+sealed to them.  The key itself can be kept offline and only used when enrolling
+new enclaves or doing disaster recovery.
 
 Warning
 -------
 
 This is extremely experimental.  Use at your own risk. There is no warranty.
 
-This repo includes the enclave signing private key and the enclave
+This repo includes a trivial region key, the enclave signing private key and the enclave
 runs in debug mode, so this in fact provides no meaningful security.
 
 Tour
