@@ -19,6 +19,18 @@ This is extremely experimental.  Use at your own risk. There is no warranty.
 This repo includes the enclave signing private key and the enclave
 runs in debug mode, so this in fact provides no meaningful security.
 
+Tour
+----
+
+Interesting files:
+
+* [pwenclave/pwencalve.edl](pwenclave/pwencalve.edl) defines the interface surface between user-mode code and the enclave.
+  An Intel-provided tool takes this definition and generates stubs for calling these functions in user-mode and converting
+  arguments in the enclave (these are [pwenclave/pwenclave_t.h](pwenclave/pwenclave_t.h)
+  and [smoketest/pwenclave_u.h](smoketest/pwenclave_u.h)).
+* [pwenclave/pwenclave.c](pwenclave/pwenclave.c) implements this interface.  There are bunch of other files alongside providing PBKDF2 etc.
+* [smoketest/smoketest.c](smoketest/smoketest.c) starts the enclave and exercises the functions.
+
 Building
 --------
 
