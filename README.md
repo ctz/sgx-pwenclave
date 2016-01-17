@@ -16,6 +16,8 @@ A region is represented with a AES key, and enclaves in a region have a copy of 
 sealed to them.  The key itself can be kept offline and only used when enrolling
 new enclaves or doing disaster recovery.
 
+See my corresponding blog post [here](https://jbp.io/2016/01/17/using-sgx-to-hash-passwords/).
+
 Warning
 -------
 
