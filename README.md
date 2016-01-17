@@ -9,7 +9,7 @@ same key.
 
 This project does simple PBKDF2 password hashing inside an SGX enclave.
 Password hashes are only available to the enclave, and therefore no amount of
-database leaks will jeopardise user passwords.
+database leakage will jeopardise user passwords.  Your stack of GPUs are useless here.
 
 Warning
 -------
